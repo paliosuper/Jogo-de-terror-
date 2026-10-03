@@ -122,6 +122,109 @@ const Assets = (() => {
         ctx.fillStyle = '#d84f4f';
         ctx.beginPath(); ctx.arc(w/2, 2, 3, 0, Math.PI*2); ctx.fill(); // luz vermelha no topo
       }
+    },
+
+    /* ================= CENA DA TORRE (abertura) ================= */
+
+    /* ---- Caixa perdida com a etiqueta FREQUENCY 17 ---- */
+    freq_box: {
+      w: 26, h: 18,
+      draw: (ctx, w, h) => {
+        // caixa marrom-escura com fita e etiqueta clara
+        ctx.fillStyle = '#3a2e22';
+        ctx.fillRect(1, 3, w-2, h-4);
+        ctx.fillStyle = '#4a3b2c';
+        ctx.fillRect(1, 3, w-2, 4);                 // tampa
+        ctx.fillStyle = '#241b12';
+        ctx.fillRect(w/2 - 1, 3, 2, h-4);           // fita vertical
+        // etiqueta "FREQUENCY 17" legível mesmo em miniatura
+        ctx.fillStyle = '#d8dde0';
+        ctx.fillRect(3, 8, w-6, 7);
+        ctx.fillStyle = '#12181d';
+        ctx.font = 'bold 5px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('FREQ', w/2, 12.5);
+        ctx.fillText('17', w/2, 14.6);
+      }
+    },
+
+    /* ---- Trecho da torre de rádio (treliça modular — repete em X/Y) ---- */
+    tower_truss: {
+      w: 96, h: 120,
+      draw: (ctx, w, h) => {
+        ctx.strokeStyle = '#242e36';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(8, 0);  ctx.lineTo(8, h);        // longarinas
+        ctx.moveTo(w-8, 0); ctx.lineTo(w-8, h);
+        ctx.moveTo(0, 6);  ctx.lineTo(w, 6);        // travessas
+        ctx.moveTo(0, h-6); ctx.lineTo(w, h-6);
+        ctx.lineWidth = 2;
+        ctx.moveTo(8, 6);   ctx.lineTo(w-8, h/2);   // diagonais em X
+        ctx.lineTo(8, h-6);
+        ctx.moveTo(w-8, 6); ctx.lineTo(8, h/2);
+        ctx.lineTo(w-8, h-6);
+        ctx.stroke();
+        // rebites
+        ctx.fillStyle = '#31404a';
+        ctx.fillRect(6, 4, 4, 4); ctx.fillRect(w-10, 4, 4, 4);
+        ctx.fillRect(6, h-8, 4, 4); ctx.fillRect(w-10, h-8, 4, 4);
+      }
+    },
+
+    /* ---- Cabana do operador (base da torre) ---- */
+    shack: {
+      w: 160, h: 110,
+      draw: (ctx, w, h) => {
+        // corpo
+        ctx.fillStyle = '#181f16';
+        ctx.fillRect(10, 40, w-20, h-40);
+        // tábuas (variação por código, sem arte extra)
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1;
+        for (let y = 48; y < h - 6; y += 9) {
+          ctx.beginPath(); ctx.moveTo(12, y); ctx.lineTo(w-12, y); ctx.stroke();
+        }
+        // telhado
+        ctx.fillStyle = '#10151a';
+        ctx.beginPath();
+        ctx.moveTo(2, 42); ctx.lineTo(w/2, 16); ctx.lineTo(w-2, 42);
+        ctx.closePath(); ctx.fill();
+        // porta entreaberta (interior escuro + batente claro)
+        ctx.fillStyle = '#2b3842';
+        ctx.fillRect(w/2 - 16, 56, 32, h-56);
+        ctx.fillStyle = '#05080b';
+        ctx.fillRect(w/2 - 13, 59, 26, h-59);
+        // janela com reflexo azulado
+        ctx.fillStyle = '#0d1319';
+        ctx.fillRect(24, 56, 26, 18);
+        ctx.fillStyle = 'rgba(63,216,194,0.12)';
+        ctx.fillRect(26, 58, 10, 6);
+        ctx.fillStyle = '#0d1319';
+        ctx.fillRect(w-50, 56, 26, 18);
+      }
+    },
+
+    /* ---- Pinheiro silhueta (florestas do parallax E árvores próximas —
+           mesma arte escalada/tintada em camadas diferentes) ---- */
+    pine_silhouette: {
+      w: 64, h: 128,
+      draw: (ctx, w, h) => {
+        ctx.fillStyle = '#000000';   // preto -> camada aplica tint via globalAlpha sobre fundo
+        // tronco
+        ctx.fillRect(w/2 - 3, h - 22, 6, 22);
+        // copa em 3 camadas de triângulos
+        const tier = (cx, cy, sw, sh) => {
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - sh);
+          ctx.lineTo(cx - sw, cy);
+          ctx.lineTo(cx + sw, cy);
+          ctx.closePath(); ctx.fill();
+        };
+        tier(w/2, h - 18, 26, 40);
+        tier(w/2, h - 46, 20, 38);
+        tier(w/2, h - 74, 13, 34);
+      }
     }
   };
 

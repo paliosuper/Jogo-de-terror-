@@ -86,6 +86,18 @@ const U = (() => {
     return fullText.slice(0, Math.max(0, Math.min(n, fullText.length)));
   }
 
+  /** Interpolação com atraso + fade in/out suave (para overlays scripted).
+      Retorna 0..1. */
+  function pulseIn(t, delay, fadeIn, hold, fadeOut) {
+    if (t <= delay) return 0;
+    const x = t - delay;
+    if (x < fadeIn) return x / fadeIn;
+    if (x < fadeIn + hold) return 1;
+    const y = x - fadeIn - hold;
+    if (y < fadeOut) return 1 - y / fadeOut;
+    return 0;
+  }
+
   return { clamp, lerp, damp, dist, aabb, rand, randInt, pick,
-           seededRandom, noise1D, phase, roundRect, typewrite };
+           seededRandom, noise1D, phase, roundRect, typewrite, pulseIn };
 })();

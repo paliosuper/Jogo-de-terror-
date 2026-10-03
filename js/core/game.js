@@ -111,6 +111,36 @@ const Game = (() => {
     }, 600);
   }
 
+  /* ============================================================
+     OVERLAYS DE HUD EM CANVAS (game.setOverlay / drawOverlay)
+     Usados pela abertura da torre: "RADIO SIGNAL DETECTED" etc.
+     Overlay = { lines:[{text,color,size,weight}], t, dur, blink }
+     Desenhado SEM afetar o Lighting (sempre visível).
+     ============================================================ */
+  let overlay = null;
+  function setOverlay(o) { overlay = o; }
+
+  function drawOverlay(ctx, vw, vh, time) {
+    if (!overlay) return;
+    const elapsed = time - overlay.t0;
+    const life = U.clamp(1 - (elapsed - (overlay.dur - 0.6)) / 0.6, 0, 1);
+    if (life <= 0) { overlay = null; return; }
+    ctx.save();
+    ctx.globalAlpha = life * (overlay.blink ? (0.75 + 0.25 * Math.sin(time * 14)) : 1);
+    ctx.textAlign = 'center';
+    let y = vh * 0.3;
+    for (const ln of overlay.lines) {
+      // sombra/glow por código — sem asset extra
+      ctx.shadowColor = ln.glow || 'rgba(63,216,194,0.8)';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = ln.color;
+      ctx.font = `${ln.weight || 'bold'} ${ln.size || 22}px monospace`;
+      ctx.fillText(ln.text, vw / 2, y);
+      y += (ln.size || 22) + 10;
+    }
+    ctx.restore();
+  }
+
   /* ---------- Loop principal ---------- */
   function frame(ts) {
     requestAnimationFrame(frame);
@@ -155,6 +185,9 @@ const Game = (() => {
       if (started) Player.addLights();
       current.addLights(ctx, time);
       Lighting.render(ctx, time);
+
+      // overlay scripted por cima da escuridão (abertura da torre)
+      drawOverlay(ctx, vw, vh, time);
     }
 
     // debug (F3)
@@ -202,10 +235,7 @@ const Game = (() => {
       title.classList.add('gone');
       document.getElementById('hud').classList.remove('hidden');
       started = true;
-      changeScene('tunnel', { x: 120, y: 330 });
-      setTimeout(() => {
-        dialogue.timed('RÁDIO', '…chuuu… frequência alvo: 17.0. colete fragmentos para estabilizar a sintonia.', 6);
-      }, 1400);
+      changeScene('tower', { x: 470, y: 180 });   // abertura: subida da torre
     });
   }
 
@@ -225,7 +255,7 @@ const Game = (() => {
   }
 
   return {
-    boot, changeScene, addTuning, say, updateHud,
+    boot, changeScene, addTuning, say, updateHud, setOverlay,
     dialogue,
     get time() { return time; },
     get tuning() { return tuning; }

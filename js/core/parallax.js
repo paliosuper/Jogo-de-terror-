@@ -8,11 +8,15 @@
 const Parallax = (() => {
 
   /* Cria uma camada.
-     opts = { depth, draw(ctx, viewW, viewH, offsetX, time) }
-     offsetX já vem compensado pela profundidade. */
+     opts = { depth, yAnchor, draw(ctx, viewW, viewH, offX, offY, time) }
+     offsetX/offsetY já vêm compensados pela profundidade.
+     yAnchor: multiplicador do deslocamento vertical (padrão 0.35).
+       1  = acompanha 1:1 (céu fixo no mundo);
+       -1 = ancorado à tela (foreground que não anda com a câmera). */
   function layer(opts) {
     return {
       depth: opts.depth ?? 0.5,
+      yAnchor: opts.yAnchor ?? 0.35,
       draw: opts.draw,
       image: opts.image || null,   // se tiver imagem real, substitui o procedural
       tileW: opts.tileW || 0
@@ -24,7 +28,7 @@ const Parallax = (() => {
     const sorted = [...layers].sort((a, b) => a.depth - b.depth);
     for (const L of sorted) {
       const offX = camX * L.depth;
-      const offY = camY * L.depth * 0.35; // vertical menos intenso
+      const offY = camY * L.depth * L.yAnchor; // vertical menos intenso
       ctx.save();
       if (L.image && L.tileW > 0) {
         // versão com imagem real: tile modular

@@ -22,10 +22,22 @@ const Player = (() => {
   function centerX() { return state.x + state.w / 2; }
   function centerY() { return state.y + state.h / 2; }
 
+  /* ---- Controle externo (aberturas/scripted): congela o input sem
+         reescrever o jogador. Default: sempre liberado. ---- */
+  let controlLocked = false;
+  function setControlLocked(v) { controlLocked = !!v; }
+  function isControlLocked() { return controlLocked; }
+
+  /* ---- Empurrão momentâneo (tropeço da abertura) ---- */
+  let nudge = null;   // {vx, vy, t}
+  function addNudge(vx, vy, dur = 0.4) { nudge = { vx, vy, t: dur }; }
+
   function spawn(x, y) {
     state.x = x; state.y = y;
     state.moving = false;
     state.animTime = 0;
+    nudge = null;
+    controlLocked = false;
   }
 
   /** AABB atual para colisão */
@@ -35,8 +47,16 @@ const Player = (() => {
   }
 
   function update(dt, solids) {
-    const mv = Input.moveVector();
-    const sprint = Input.isDown('sprint');
+    // empurrão de scripted event (tropeço) — sempre aplicado
+    if (nudge) {
+      nudge.t -= dt;
+      const k = U.clamp(nudge.t / 0.4, 0, 1);
+      moveWithCollision(nudge.vx * k * dt, nudge.vy * k * dt, solids);
+      if (nudge.t <= 0) nudge = null;
+    }
+
+    const mv = controlLocked ? { x: 0, y: 0 } : Input.moveVector();
+    const sprint = !controlLocked && Input.isDown('sprint');
     const spd = state.speed * (sprint ? state.sprintMul : 1);
 
     state.moving = (mv.x !== 0 || mv.y !== 0);
@@ -51,10 +71,7 @@ const Player = (() => {
       }
 
       // movimento em dois passes (X depois Y) -> deslize em paredes
-      let nx = state.x + mv.x * spd * dt;
-      if (!collidesAt(nx, state.y, solids)) state.x = nx;
-      let ny = state.y + mv.y * spd * dt;
-      if (!collidesAt(state.x, ny, solids)) state.y = ny;
+      moveWithCollision(mv.x * spd * dt, mv.y * spd * dt, solids);
 
       // animação de passos + sfx
       state.animTime += dt * (sprint ? 1.5 : 1);
@@ -77,6 +94,18 @@ const Player = (() => {
     state.bobPhase += dt * (state.moving ? 9 : 2.2);
   }
 
+  /** Movimento com colisão em dois passes (X depois Y) -> deslize em paredes */
+  function moveWithCollision(dx, dy, solids) {
+    if (dx !== 0) {
+      const nx = state.x + dx;
+      if (!collidesAt(nx, state.y, solids)) state.x = nx;
+    }
+    if (dy !== 0) {
+      const ny = state.y + dy;
+      if (!collidesAt(state.x, ny, solids)) state.y = ny;
+    }
+  }
+
   function collidesAt(px, py, solids) {
     const hb = { x: px + 5, y: py + 22, w: state.w - 10, h: 16 };
     for (const s of solids) {
@@ -92,13 +121,21 @@ const Player = (() => {
     const img = Assets.get(name);
     if (!img) return;
 
-    const bob = Math.sin(state.bobPhase) * (state.moving ? 1.4 : 0.7);
+    let bob = Math.sin(state.bobPhase) * (state.moving ? 1.4 : 0.7);
+    let lean = state.moving ? Math.sin(state.bobPhase) * 0.02 : 0;
+    let tilt = 0;
+
+    // tropeço (nudge ativo): inclina para frente e "escorrega" visualmente
+    if (nudge) {
+      const k = U.clamp(nudge.t / 0.4, 0, 1);
+      tilt = 0.35 * k;
+      bob -= 4 * k;
+    }
 
     ctx.save();
     ctx.translate(centerX(), footY());
     if (state.flipped) ctx.scale(-1, 1);
-    // leve inclinação ao andar — vida no placeholder
-    if (state.moving) ctx.rotate(Math.sin(state.bobPhase) * 0.02);
+    ctx.rotate(tilt + lean);
     ctx.drawImage(img, -state.w / 2, -state.h + bob, state.w, state.h);
     ctx.restore();
   }
@@ -111,5 +148,8 @@ const Player = (() => {
 
   function getPos() { return { x: centerX(), y: centerY() }; }
 
-  return { state, spawn, update, draw, addLights, getPos, hitbox, footY };
+  return {
+    state, spawn, update, draw, addLights, getPos, hitbox, footY,
+    setControlLocked, isControlLocked, addNudge
+  };
 })();

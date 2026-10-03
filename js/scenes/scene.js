@@ -17,6 +17,7 @@ class Scene {
     this.ambient = 0.85;     // escuridão base
     this.ambientColor = '5, 10, 16';
     this.droneFreq = 55;
+    this.exitsLocked = false; // true -> saídas desativadas (aberturas/scripted)
     this.events = {};        // narrativa ambiental por gatilho: id -> {once, fn}
     this._firedEvents = new Set();
   }
@@ -34,8 +35,8 @@ class Scene {
       if (s.tryCollect(pp)) Game.addTuning(s.bump);
     }
 
-    // saídas
-    if (!Game.dialogue.active) {
+    // saídas (respeitando flag de bloqueio da cena — usada na abertura)
+    if (!Game.dialogue.active && !this.exitsLocked) {
       const hb = Player.hitbox();
       for (const e of this.exits) {
         if (U.aabb(hb, e)) {
@@ -46,7 +47,7 @@ class Scene {
     }
 
     // interação (espaço/E): terminal > npc
-    if (Input.justPressed('interact') && !Game.dialogue.active) {
+    if (Input.justPressed('interact') && !Game.dialogue.active && !Player.isControlLocked()) {
       let target = null;
       for (const t of this.terminals) if (t.near(pp)) { target = t; break; }
       if (!target) {
