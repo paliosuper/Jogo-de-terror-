@@ -1,0 +1,253 @@
+/* ============================================================
+   FREQUENCY 17 — estilos globais
+   Estética: 2D, atmosférica, sombria, transmissão/rádio
+   ============================================================ */
+
+:root {
+  --c-bg: #05070a;
+  --c-fg: #c9d6dd;
+  --c-accent: #3fd8c2;      /* ciano da "frequência" */
+  --c-warn: #d84f4f;
+  --c-panel: rgba(8, 14, 18, 0.85);
+  --font-mono: "Courier New", ui-monospace, monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--c-bg);
+  color: var(--c-fg);
+  font-family: var(--font-mono);
+  overflow: hidden;
+}
+
+/* ---- Canvas centralizado, escala proporcional ---- */
+#game-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  image-rendering: pixelated;           /* preserva estética 2D/pixel */
+  background: #000;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.9);
+}
+
+/* ---- Overlays (tela de título) ---- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  background: radial-gradient(ellipse at center, rgba(10, 18, 24, 0.6), rgba(0, 0, 0, 0.95));
+  z-index: 30;
+  transition: opacity 0.8s ease;
+}
+.overlay.hidden:not(#title-screen) { display: none; }
+.overlay.gone { opacity: 0; pointer-events: none; display: none; }
+
+.game-title {
+  font-size: clamp(2rem, 7vw, 4.5rem);
+  letter-spacing: 0.35em;
+  color: var(--c-fg);
+  text-shadow: 0 0 12px var(--c-accent), 0 0 40px rgba(63, 216, 194, 0.35);
+  animation: title-flicker 4s infinite steps(1);
+  position: relative;
+}
+/* Camada "glitch" do título — usa o mesmo texto via data-text, sem imagem extra */
+.game-title::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 2px;
+  top: 0;
+  color: var(--c-warn);
+  clip-path: inset(40% 0 45% 0);
+  opacity: 0.55;
+  animation: title-glitch 3.7s infinite linear;
+  pointer-events: none;
+}
+@keyframes title-flicker {
+  0%, 92%, 96%, 100% { opacity: 1; }
+  93% { opacity: 0.4; }
+  95% { opacity: 0.75; }
+}
+@keyframes title-glitch {
+  0%, 90%, 100% { transform: translateX(0); }
+  92% { transform: translateX(-4px); }
+  94% { transform: translateX(3px); }
+  96% { transform: translateX(-2px); }
+}
+
+.game-subtitle {
+  font-size: 0.95rem;
+  letter-spacing: 0.25em;
+  color: rgba(201, 214, 221, 0.6);
+  text-transform: lowercase;
+}
+
+.menu-btn {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.15em;
+  padding: 0.7rem 2.2rem;
+  margin-top: 1rem;
+  color: var(--c-accent);
+  background: var(--c-panel);
+  border: 1px solid rgba(63, 216, 194, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.menu-btn:hover {
+  background: rgba(63, 216, 194, 0.12);
+  box-shadow: 0 0 18px rgba(63, 216, 194, 0.35);
+  text-shadow: 0 0 8px var(--c-accent);
+}
+
+.hint {
+  font-size: 0.7rem;
+  color: rgba(201, 214, 221, 0.35);
+  letter-spacing: 0.1em;
+}
+
+/* ---- Transição fade entre cenas ---- */
+.fade {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.fade.active { opacity: 1; }
+
+/* ---- Caixa de diálogo / narrativa ambiental ---- */
+.dialogue {
+  position: fixed;
+  left: 50%;
+  bottom: 4vh;
+  transform: translateX(-50%);
+  width: min(70ch, 90vw);
+  background: var(--c-panel);
+  border: 1px solid rgba(63, 216, 194, 0.25);
+  border-radius: 2px;
+  padding: 0.9rem 1.2rem;
+  z-index: 25;
+  color: var(--c-fg);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.7);
+  transition: opacity 0.3s ease;
+}
+.dialogue.hidden { opacity: 0; pointer-events: none; }
+#dialogue-speaker {
+  display: block;
+  color: var(--c-accent);
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+#dialogue-continue {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.5rem;
+  color: var(--c-accent);
+  animation: bob 1s infinite ease-in-out;
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
+/* ---- HUD ---- */
+#hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 20;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+#hud.hidden { opacity: 0; }
+
+#freq-meter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: rgba(201, 214, 221, 0.7);
+}
+#freq-bar {
+  width: 140px;
+  height: 8px;
+  border: 1px solid rgba(63, 216, 194, 0.4);
+  background: rgba(0, 0, 0, 0.5);
+}
+#freq-fill {
+  width: 50%;
+  height: 100%;
+  background: var(--c-accent);
+  box-shadow: 0 0 8px var(--c-accent);
+  transition: width 0.2s linear;
+}
+#freq-value { color: var(--c-accent); min-width: 4ch; }
+
+#scene-name {
+  font-size: 0.75rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(201, 214, 221, 0.45);
+}
+
+/* ---- Efeito CRT / scanlines (puramente CSS, sem assets) ---- */
+#crt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0px,
+      rgba(0, 0, 0, 0) 2px,
+      rgba(0, 0, 0, 0.12) 3px
+    );
+  mix-blend-mode: multiply;
+  opacity: 0.8;
+}
+#crt-overlay::after {
+  /* vinheta sutil nas bordas */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+              rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+/* ---- Debug ---- */
+#debug-info {
+  position: fixed;
+  top: 3rem;
+  left: 1rem;
+  z-index: 50;
+  font-size: 0.7rem;
+  color: rgba(63, 216, 194, 0.8);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 0.5rem;
+  white-space: pre;
+  pointer-events: none;
+}
+#debug-info.hidden { display: none; }
+
+.hidden { display: none; }
