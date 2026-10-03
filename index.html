@@ -1,15 +1,73 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
-    <title>FREQUENCY 17</title>
-  </head>
-  <body>
-    <div id="app">
-      <canvas id="game" aria-label="FREQUENCY 17 game canvas"></canvas>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FREQUENCY 17</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- Tela de título / entrada -->
+  <div id="title-screen" class="overlay">
+    <h1 class="game-title" data-text="FREQUENCY 17">FREQUENCY 17</h1>
+    <p class="game-subtitle">sintonize. explore. sobreviva à transmissão.</p>
+    <button id="btn-start" class="menu-btn">▶ INICIAR TRANSMISSÃO</button>
+    <p class="hint">Setas / WASD para mover · Espaço para interagir</p>
+  </div>
+
+  <!-- Overlay de transição entre cenas -->
+  <div id="fade-overlay" class="fade hidden"></div>
+
+  <!-- Diálogo / narrativa ambiental -->
+  <div id="dialogue-box" class="dialogue hidden">
+    <span id="dialogue-speaker"></span>
+    <p id="dialogue-text"></p>
+    <span id="dialogue-continue" class="hidden">▼</span>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div id="freq-meter" title="Sintonia">
+      <span id="freq-label">FREQ</span>
+      <div id="freq-bar"><div id="freq-fill"></div></div>
+      <span id="freq-value">17.0</span>
     </div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+    <div id="scene-name"></div>
+  </div>
+
+  <!-- Canvas principal do jogo -->
+  <canvas id="game-canvas" width="960" height="540"></canvas>
+
+  <!-- Filtro de CRT / ruído (estética de transmissão) -->
+  <div id="crt-overlay" aria-hidden="true"></div>
+
+  <!-- Camada de debug (toggle com F3) -->
+  <pre id="debug-info" class="hidden"></pre>
+
+  <!-- Módulos do jogo (ordem importa: utilitários antes de tudo) -->
+  <script src="js/core/utils.js"></script>
+  <script src="js/core/assets.js"></script>
+  <script src="js/core/input.js"></script>
+  <script src="js/core/camera.js"></script>
+  <script src="js/core/lighting.js"></script>
+  <script src="js/core/particles.js"></script>
+  <script src="js/core/parallax.js"></script>
+  <script src="js/core/audio.js"></script>
+  <script src="js/entities/player.js"></script>
+  <script src="js/entities/npc.js"></script>
+  <script src="js/entities/signal.js"></script>
+  <script src="js/scenes/scene.js"></script>
+  <script src="js/scenes/title.js"></script>
+  <script src="js/scenes/tunnel.js"></script>
+  <script src="js/scenes/ruins.js"></script>
+  <script src="js/scenes/controlroom.js"></script>
+  <script src="js/core/game.js"></script>
+
+  <script>
+    // Bootstrap simples — o jogo inicia quando o DOM estiver pronto
+    window.addEventListener('DOMContentLoaded', () => {
+      Game.boot(document.getElementById('game-canvas'));
+    });
+  </script>
+</body>
 </html>
