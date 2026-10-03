@@ -117,7 +117,7 @@ Sem gore, sem jumpscares constantes, sem combate.
   API `window.__frequency17`.
 - **ETAPA 2 concluída e verificada**: mundo com 3 pisos (`entrada`, `radio`,
   `exterior`) ligados por portas/escadas com fade; parallax de 7 camadas
-  (`src/game/parallax/parallax.ts`) reutilizado na janela da sala do rádio;
+  (`app/src/game/parallax/parallax.ts`) reutilizado na janela da sala do rádio;
   abertura jogável (beat → subida automática → tropeço → caixa cai e para
   ~130px abaixo → controle volta); caixa interagível com E → etiqueta
   FREQUENCY 17 → rádio liga sozinho → transmissão datilografada com

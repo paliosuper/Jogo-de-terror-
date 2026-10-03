@@ -11,13 +11,13 @@
  *
  * Run: bun scripts/verifyEtapa1.ts   (exit 0 = all checks pass)
  */
-import { Camera } from "../src/game/core/camera";
-import { Input } from "../src/game/core/input";
-import { InteractionSystem, type Interactable } from "../src/game/interact/interaction";
-import { drawParallax, drawParallaxForeground, LAYERS } from "../src/game/parallax/parallax";
-import { Player } from "../src/game/player/player";
-import { createArena } from "../src/game/world/arena";
-import { createWorld, type Floor } from "../src/game/world/world";
+import { Camera } from "../app/src/game/core/camera";
+import { Input } from "../app/src/game/core/input";
+import { InteractionSystem, type Interactable } from "../app/src/game/interact/interaction";
+import { drawParallax, drawParallaxForeground, LAYERS } from "../app/src/game/parallax/parallax";
+import { Player } from "../app/src/game/player/player";
+import { createArena } from "../app/src/game/world/arena";
+import { createWorld, type Floor } from "../app/src/game/world/world";
 
 let passed = 0;
 let failed = 0;
@@ -409,7 +409,7 @@ interface GameApi {
 }
 
 try {
-  await import("../src/main");
+  await import("../app/src/main");
   const api = (globalThis as unknown as { window: { __frequency17?: GameApi } }).window
     .__frequency17;
 
