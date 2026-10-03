@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "note": "PLACEHOLDER da criatura (FREQUENCY 17). Gerado por tools/generate_creature_placeholder.py. Trocar pela arte definitiva mantendo este layout ou ajustando 'animations' aqui.",
+    "image": "creature_placeholder.png",
+    "size": { "w": 288, "h": 320 }
+  },
+  "frameWidth": 48,
+  "frameHeight": 64,
+  "columns": 6,
+  "rows": 5,
+  "pivot": { "x": 0.5, "y": 1.0 },
+  "animations": {
+    "idle":     { "row": 0, "frames": 6, "fps": 2.5, "loop": true },
+    "walk":     { "row": 1, "frames": 6, "fps": 8,   "loop": true },
+    "slowWalk": { "row": 2, "frames": 6, "fps": 4,   "loop": true },
+    "turn":     { "row": 3, "frames": 6, "fps": 2.2, "loop": false },
+    "look":     { "row": 3, "frames": 6, "fps": 0.8, "startFrame": 5, "loop": false },
+    "retreat":  { "row": 4, "frames": 6, "fps": 5,   "loop": true }
+  }
+}

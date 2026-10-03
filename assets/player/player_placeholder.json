@@ -1,0 +1,30 @@
+{
+  "image": "player_placeholder.png",
+  "frameWidth": 64,
+  "frameHeight": 64,
+  "columns": 6,
+  "rows": 4,
+  "directionRowOrder": [
+    "down",
+    "left",
+    "right",
+    "up"
+  ],
+  "animations": {
+    "idle_down": 6,
+    "idle_left": 6,
+    "idle_right": 6,
+    "idle_up": 6,
+    "walk_down": 6,
+    "walk_left": 6,
+    "walk_right": 6,
+    "walk_up": 6,
+    "run_down": 6,
+    "run_left": 6,
+    "run_right": 6,
+    "run_up": 6,
+    "interact": 6,
+    "scared": 6,
+    "stunned": 6
+  }
+}
