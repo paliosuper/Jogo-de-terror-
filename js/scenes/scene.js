@@ -18,8 +18,42 @@ class Scene {
     this.ambientColor = '5, 10, 16';
     this.droneFreq = 55;
     this.exitsLocked = false; // true -> saídas desativadas (aberturas/scripted)
+    this.keys = [];          // chaves interativas no chão (KeyItem)
+    this.doors = [];         // portas trancadas (DoorTag) — também em solids
     this.events = {};        // narrativa ambiental por gatilho: id -> {once, fn}
     this._firedEvents = new Set();
+  }
+
+  /* ---- Suporte a chaves/portas (usado pelas cenas que as possuem) ---- */
+  placeKey(key)   { this.keys.push(key); }
+  placeDoor(door) {
+    this.doors.push(door);
+    door.solidRef = { x: door.rect.x, y: door.rect.y, w: door.rect.w, h: door.rect.h };
+    this.solids.push(door.solidRef);
+  }
+  removeSolid(s) {
+    const i = this.solids.indexOf(s);
+    if (i >= 0) this.solids.splice(i, 1);
+  }
+  hasKey(id) { return this.keys.some(k => k.id === id && k.taken); }
+
+  /** Interação prioritária com objetos de cena (chave/porta) antes de
+      terminais/NPCs. Retorna true se algo aconteceu neste frame. */
+  tryObjectInteraction(pp) {
+    for (const k of this.keys) {
+      if (k.near(pp)) { k.take(); Game.dialogue.show('OBJETO', 'uma chave. fria como as outras coisas daqui.', 3); return true; }
+    }
+    for (const d of this.doors) {
+      if (d.near(pp)) {
+        if (d.tryOpen(this.keys.filter(x => x.taken).map(x => x.id))) {
+          this.removeSolid(d.solidRef);
+          return true;
+        }
+        Game.dialogue.show('PORTA', `trancada. falta a chave${d.needsKey ? ` "${d.needsKey}"` : ''}.`, 3);
+        return true;
+      }
+    }
+    return false;
   }
 
   enter() {}                 // chamado ao trocar para esta cena
@@ -28,6 +62,7 @@ class Scene {
   update(dt) {
     for (const n of this.npcs) n.update(dt);
     for (const s of this.shards) s.update(dt);
+    for (const k of this.keys) k.update(dt);
 
     // coleta automática por proximidade
     const pp = Player.getPos();
@@ -46,20 +81,29 @@ class Scene {
       }
     }
 
-    // interação (espaço/E): terminal > npc
-    if (Input.justPressed('interact') && !Game.dialogue.active && !Player.isControlLocked()) {
-      let target = null;
-      for (const t of this.terminals) if (t.near(pp)) { target = t; break; }
-      if (!target) {
-        for (const n of this.npcs) {
-          if (U.dist(n.cx, n.cy, pp.x, pp.y) < 70) { target = n; break; }
+    // interação (espaço/E): objeto > terminal > npc — SEMPRE avaliada, mesmo
+    // com o diálogo aberto: se a fala já terminou de aparecer, E/Espaço
+    // apenas a fecha; só dispara nova interação quando não há caixa visível.
+    if (Input.justPressed('interact')) {
+      if (Game.dialogue.active) {
+        Game.dialogue.tryClose();
+      } else if (!this.exitsLocked && !Player.isControlLocked()) {
+        let handled = this.tryObjectInteraction(pp);
+        if (!handled) {
+          let target = null;
+          for (const t of this.terminals) if (t.near(pp)) { target = t; break; }
+          if (!target) {
+            for (const n of this.npcs) {
+              if (U.dist(n.cx, n.cy, pp.x, pp.y) < 70) { target = n; break; }
+            }
+          }
+          if (target) {
+            const line = target.use ? target.use() : target.speak();
+            Game.dialogue.show(line.speaker, line.text);
+            Particles.emit({ x: pp.x, y: pp.y - 30, vx: 0, vy: -20,
+                             life: 0.6, size: 2, color: 'rgba(63,216,194,0.9)', glow: true });
+          }
         }
-      }
-      if (target) {
-        const line = target.use ? target.use() : target.speak();
-        Game.dialogue.show(line.speaker, line.text);
-        Particles.emit({ x: pp.x, y: pp.y - 30, vx: 0, vy: -20,
-                         life: 0.6, size: 2, color: 'rgba(63,216,194,0.9)', glow: true });
       }
     }
 
@@ -134,6 +178,7 @@ class Scene {
     }
     for (const s of this.shards) s.addLights();
     for (const t of this.terminals) t.addLights();
+    for (const k of this.keys) k.addLights();
   }
 
   drawEntitiesFront(ctx, time) {
@@ -142,6 +187,8 @@ class Scene {
     for (const n of this.npcs) drawables.push({ y: n.y + n.h, d: () => n.draw(ctx) });
     for (const s of this.shards) drawables.push({ y: s.y, d: () => s.draw(ctx) });
     for (const t of this.terminals) drawables.push({ y: t.y + t.h, d: () => t.draw(ctx, time) });
+    for (const k of this.keys) drawables.push({ y: k.cy, d: () => k.draw(ctx) });
+    for (const dr of this.doors) drawables.push({ y: dr.rect.y + dr.rect.h, d: () => dr.draw(ctx, time) });
     drawables.push({ y: Player.footY(), d: () => Player.draw(ctx) });
     drawables.sort((a, b) => a.y - b.y);
     for (const it of drawables) it.d();

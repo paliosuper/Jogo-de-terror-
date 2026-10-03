@@ -20,6 +20,8 @@ const Game = (() => {
     speaker: '',
     timer: 0,
     autoHide: 0,
+    onDone: null,            // callback opcional: dispara quando a fala termina
+    doneFired: false,        // (permite sequências narrativas sem reescrever nada)
     el: null, spkEl: null, txtEl: null, contEl: null,
 
     init() {
@@ -29,13 +31,15 @@ const Game = (() => {
       this.contEl = document.getElementById('dialogue-continue');
     },
 
-    show(speaker, text) {
+    show(speaker, text, onDone) {
       this.active = true;
       this.speaker = speaker;
       this.fullText = text;
       this.shown = 0;
       this.timer = 0;
       this.autoHide = 0;
+      this.onDone = onDone || null;
+      this.doneFired = false;
       this.spkEl.textContent = speaker;
       this.txtEl.textContent = '';
       this.el.classList.remove('hidden');
@@ -43,8 +47,8 @@ const Game = (() => {
     },
 
     /** Texto temporário automático (usado por Game.say) */
-    timed(speaker, text, secs) {
-      this.show(speaker, text);
+    timed(speaker, text, secs, onDone) {
+      this.show(speaker, text, onDone);
       this.autoHide = secs;
     },
 
@@ -55,6 +59,15 @@ const Game = (() => {
       this.txtEl.textContent = visible;
       if (visible.length >= this.fullText.length) {
         this.contEl.classList.remove('hidden');
+        if (!this.doneFired) {
+          this.doneFired = true;
+          if (this.onDone) {
+            const cb = this.onDone;
+            this.hide();          // encerra aqui — o callback decide o próximo passo
+            cb();
+            return;
+          }
+        }
       }
       if (this.autoHide > 0) {
         this.autoHide -= dt;
@@ -63,6 +76,13 @@ const Game = (() => {
                  visible.length >= this.fullText.length) {
         this.hide();
       }
+    },
+
+    /** Fecha a caixa apenas se o texto já foi digitado por completo
+        (fecha com E/Espaço — tratado pela cena; autoHide continua sozinho) */
+    tryClose() {
+      const visible = U.typewrite(this.fullText, this.timer, 32);
+      if (visible.length >= this.fullText.length) this.hide();
     },
 
     hide() {
@@ -92,17 +112,32 @@ const Game = (() => {
   /* ---------- Troca de cena com fade ---------- */
   function changeScene(name, spawnAt) {
     if (fadeBusy) return;
+    // trava anti-reentrância: impede duas transições simultâneas
+    // (ex.: jogador encostado numa saída no exato frame da abertura do fade)
+    if (current) current.exitsLocked = true;
     fadeBusy = true;
     fadeEl.classList.add('active');
     setTimeout(() => {
+      const targetName = name;
+      const scene = Scenes.create(targetName);
+      // validação ANTES de destruir a cena atual: se o spawn cair dentro
+      // de um sólido, reposiciona para fora — evita "grudar" em paredes.
+      let sx = spawnAt ? spawnAt.x : Player.getPos().x;
+      let sy = spawnAt ? spawnAt.y : Player.getPos().y;
+      if (spawnAt) sx -= Player.state.w / 2;
+      if (collidesIn(scene.solids, sx, sy)) {
+        const fix = resolveSpawn(scene.solids, sx, sy);
+        sx = fix.x; sy = fix.y;
+      }
       if (current && current.exit) current.exit();
       Particles.clear();
       dialogue.hide();
-      current = Scenes.create(name);
+      overlay = null;                  // overlays não vazam entre cenas
+      current = scene;
       Camera.setBounds(current.bounds);
       Lighting.setAmbient(current.ambient, current.ambientColor);
       AudioSys.setDroneFreq(current.droneFreq);
-      if (spawnAt) Player.spawn(spawnAt.x - Player.state.w / 2, spawnAt.y);
+      Player.spawn(sx, sy);
       Camera.teleportTo(Player.getPos().x, Player.getPos().y);
       if (current.enter) current.enter();
       updateHud();
@@ -111,10 +146,35 @@ const Game = (() => {
     }, 600);
   }
 
+  /** Colisão do hitbox do jogador na posição proposta */
+  function collidesIn(solids, px, py) {
+    const hb = { x: px + 5, y: py + 22, w: Player.state.w - 10, h: 16 };
+    for (const s of solids) if (U.aabb(hb, s)) return true;
+    return false;
+  }
+
+  /** Empurra o spawn para a direção livre mais próxima (varredura simples) */
+  function resolveSpawn(solids, px, py) {
+    const dirs = [[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]];
+    for (let r = 16; r <= 320; r += 16) {
+      for (const [dx, dy] of dirs) {
+        const nx = px + dx * r, ny = py + dy * r;
+        if (!collidesIn(solids, nx, ny)) return { x: nx, y: ny };
+      }
+    }
+    return { x: px, y: py };   // último recurso: mantém e deixa a colisão agir
+  }
+
+  /** Permite às cenas pausarem o input do jogador sem reescrever o Player
+      (usado durante créditos/eventos finais). Default sempre liberado. */
+  let inputPaused = false;
+  function setInputPaused(v) { inputPaused = !!v; }
+
   /* ============================================================
      OVERLAYS DE HUD EM CANVAS (game.setOverlay / drawOverlay)
      Usados pela abertura da torre: "RADIO SIGNAL DETECTED" etc.
-     Overlay = { lines:[{text,color,size,weight}], t, dur, blink }
+     Overlay = { lines:[{text,color,size,weight}], t0, dur, blink,
+                 fadeIn?, onDone? }
      Desenhado SEM afetar o Lighting (sempre visível).
      ============================================================ */
   let overlay = null;
@@ -123,12 +183,20 @@ const Game = (() => {
   function drawOverlay(ctx, vw, vh, time) {
     if (!overlay) return;
     const elapsed = time - overlay.t0;
-    const life = U.clamp(1 - (elapsed - (overlay.dur - 0.6)) / 0.6, 0, 1);
-    if (life <= 0) { overlay = null; return; }
+    const fadeIn = overlay.fadeIn || 0.35;
+    // fim de vida: fade-out nos últimos 0.6s
+    const lifeOut = U.clamp(1 - (elapsed - (overlay.dur - 0.6)) / 0.6, 0, 1);
+    if (elapsed >= overlay.dur) {
+      const cb = overlay.onDone;
+      overlay = null;
+      if (cb) cb();                     // permite sequências (final/créditos)
+      return;
+    }
+    const alpha = U.clamp(elapsed / fadeIn, 0, 1) * lifeOut;
     ctx.save();
-    ctx.globalAlpha = life * (overlay.blink ? (0.75 + 0.25 * Math.sin(time * 14)) : 1);
+    ctx.globalAlpha = alpha * (overlay.blink ? (0.75 + 0.25 * Math.sin(time * 14)) : 1);
     ctx.textAlign = 'center';
-    let y = vh * 0.3;
+    let y = overlay.yStart !== undefined ? overlay.yStart : vh * 0.3;
     for (const ln of overlay.lines) {
       // sombra/glow por código — sem asset extra
       ctx.shadowColor = ln.glow || 'rgba(63,216,194,0.8)';
@@ -150,7 +218,7 @@ const Game = (() => {
 
     // ---- UPDATE ----
     if (started && current && !fadeBusy) {
-      Player.update(dt, current.solids);
+      Player.update(dt, current.solids, inputPaused);
       current.update(dt);
     }
     dialogue.update(dt);
@@ -249,14 +317,26 @@ const Game = (() => {
     canvas.style.height = Math.floor(canvas.height * scale) + 'px';
   }
 
-  /** Atalho para falas ambientais automáticas */
-  function say(speaker, text, secs = 4) {
-    dialogue.timed(speaker, text, secs);
+  /** Atalho para falas ambientais automáticas (callback opcional p/ sequências) */
+  function say(speaker, text, secs = 4, onDone = null) {
+    dialogue.timed(speaker, text, secs, onDone);
   }
 
+  /** Exposto às cenas: estado global simples da run (narrativa/pistas).
+      Persiste entre trocas de cena; resetado apenas ao recarregar a página. */
+  const story = {
+    boxTaken: false,        // caixa FREQUENCY 17 recuperada na torre
+    radioSpoke: false,      // "Você demorou." exibido
+    metCreature: false,     // criatura já apareceu (não ataca)
+    knowsClock: false,      // viu o relógio em 03:17
+    knowsMark17: false,     // viu as marcas "17" na torre
+    photoFound: false,      // fotografia dele mesmo encontrada
+    ended: false            // sequência final concluída
+  };
+
   return {
-    boot, changeScene, addTuning, say, updateHud, setOverlay,
-    dialogue,
+    boot, changeScene, addTuning, say, updateHud, setOverlay, setInputPaused,
+    dialogue, story,
     get time() { return time; },
     get tuning() { return tuning; }
   };
