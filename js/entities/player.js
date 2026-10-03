@@ -28,6 +28,18 @@ const Player = (() => {
   function setControlLocked(v) { controlLocked = !!v; }
   function isControlLocked() { return controlLocked; }
 
+  /* ---- Modificador de velocidade por script (ex.: "presença" da criatura
+         deixa o jogador temporariamente mais lento). Reutiliza o jogador,
+         sem nova mecânica: é só um multiplicador com decaimento. ---- */
+  let speedMul = 1;
+  let speedMulTimer = 0;
+  function slow(duration, mul = 0.55) {
+    // aplica o efeito mais forte vigente
+    const m = U.clamp(mul, 0.2, 1);
+    if (m < speedMul || speedMulTimer <= 0) { speedMul = m; }
+    speedMulTimer = Math.max(speedMulTimer, duration);
+  }
+
   /* ---- Empurrão momentâneo (tropeço da abertura) ---- */
   let nudge = null;   // {vx, vy, t}
   function addNudge(vx, vy, dur = 0.4) { nudge = { vx, vy, t: dur }; }
@@ -38,6 +50,7 @@ const Player = (() => {
     state.animTime = 0;
     nudge = null;
     controlLocked = false;
+    speedMul = 1; speedMulTimer = 0;   // modificadores não vazam entre cenas
   }
 
   /** AABB atual para colisão */
@@ -46,7 +59,13 @@ const Player = (() => {
     return { x: state.x + 5, y: state.y + 22, w: state.w - 10, h: 16 };
   }
 
-  function update(dt, solids) {
+  function update(dt, solids, paused = false) {
+    // decaimento do modificador de velocidade (scripted)
+    if (speedMulTimer > 0) {
+      speedMulTimer -= dt;
+      if (speedMulTimer <= 0) speedMul = 1;
+    }
+
     // empurrão de scripted event (tropeço) — sempre aplicado
     if (nudge) {
       nudge.t -= dt;
@@ -55,9 +74,10 @@ const Player = (() => {
       if (nudge.t <= 0) nudge = null;
     }
 
-    const mv = controlLocked ? { x: 0, y: 0 } : Input.moveVector();
-    const sprint = !controlLocked && Input.isDown('sprint');
-    const spd = state.speed * (sprint ? state.sprintMul : 1);
+    const blocked = controlLocked || paused;
+    const mv = blocked ? { x: 0, y: 0 } : Input.moveVector();
+    const sprint = !blocked && Input.isDown('sprint');
+    const spd = state.speed * (sprint ? state.sprintMul : 1) * speedMul;
 
     state.moving = (mv.x !== 0 || mv.y !== 0);
 
@@ -150,6 +170,7 @@ const Player = (() => {
 
   return {
     state, spawn, update, draw, addLights, getPos, hitbox, footY,
-    setControlLocked, isControlLocked, addNudge
+    setControlLocked, isControlLocked, addNudge, slow,
+    get speedMul() { return speedMul; }
   };
 })();
