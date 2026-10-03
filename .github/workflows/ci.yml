@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Typecheck
+        run: bun tsc -b --noEmit
+      - name: Acceptance checks (Etapa 1 + 2)
+        run: bun scripts/verifyEtapa1.ts
