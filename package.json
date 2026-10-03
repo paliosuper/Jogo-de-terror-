@@ -7,7 +7,7 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -15,5 +15,8 @@
   "dependencies": {
     "pixi.js": "^8.22.0",
     "vitest": "^4.1.11"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
   }
 }

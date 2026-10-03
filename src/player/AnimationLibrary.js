@@ -89,5 +89,3 @@ export function isDirectional(animName) {
   const def = PLAYER_CONFIG.sheet.animations[animName];
   return def?.row === "direction";
 }
-
-export { PlayerState };

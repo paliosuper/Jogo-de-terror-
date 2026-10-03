@@ -187,10 +187,9 @@ export class Player {
     this._interactTimer = Math.max(0, this._interactTimer - dt);
     this._interactCooldown = Math.max(0, this._interactCooldown - dt);
 
-    // STUNNED sai sozinho quando o timer expira
-    if (this.stateMachine.is(PlayerState.STUNNED) && this._stunTimer <= 0) {
-      this.stateMachine.force(PlayerState.SCARED, { reason: "stun-end" });
-    }
+    // (a saida de STUNNED/SCARED agora e garantida pela propria maquina de
+    // estados via timers no contexto -- nenhum estado temporario "prende" o
+    // jogador para sempre, mesmo se algum sistema esquecer de limpar.)
 
     // ---- leitura de input -------------------------------------------------
     const rawX = readAxis(this.input, this.keyMap.right) - readAxis(this.input, this.keyMap.left);

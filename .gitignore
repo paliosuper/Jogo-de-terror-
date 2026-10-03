@@ -1,1 +1,8 @@
-(empty)
+# Dependencies
+node_modules/
+
+# Build outputs and caches
+dist/
+build/
+.vite/
+*.tsbuildinfo

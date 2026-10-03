@@ -25,9 +25,6 @@ export const PlayerState = Object.freeze({
 
 export const ALL_STATES = Object.freeze(Object.values(PlayerState));
 
-/** Estados que ignoram completamente o input de direcao. */
-const BLOCKING_STATES = new Set([PlayerState.SCARED, PlayerState.STUNNED]);
-
 export class PlayerStateMachine {
   /**
    * @param {object} player instancia do Player (le facing/speed/movement flags)
@@ -91,12 +88,18 @@ export class PlayerStateMachine {
 
   /**
    * Atualiza as regras de transicao "livres" (input -> IDLE/WALK/RUN/INTERACT).
-   * STUNNED/SCARED nunca saem daqui -- so pela duracao ou por clearScare().
+   * STUNNED/SCARED sao impostos por outros sistemas e SAEM automaticamente
+   * quando os timers deles expirem -- um estado temporario jamais fica
+   * "pendurado" para sempre no jogador.
    */
   update(context) {
     switch (this._state) {
       case PlayerState.STUNNED:
-        // sai sozinho quando o timer do Player expira (ver Player.update)
+        // saida garantida pelo proprio timer (nunca depende de forcar SCARED)
+        if (context.stunTimer <= 0) {
+          if (context.scareTimer > 0) this.force(PlayerState.SCARED, { reason: "stun-end" });
+          else this.force(PlayerState.IDLE, { reason: "recovered" });
+        }
         return;
 
       case PlayerState.SCARED:
@@ -112,7 +115,6 @@ export class PlayerStateMachine {
 
       default: {
         // IDLE / WALK / RUN
-        if (BLOCKING_STATES.has(this._state)) return; // defensivo
         if (context.interactIntent) {
           this.force(PlayerState.INTERACT, { targetId: context.interactTargetId });
           return;

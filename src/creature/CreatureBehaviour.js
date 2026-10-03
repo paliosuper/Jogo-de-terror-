@@ -106,40 +106,59 @@ export class CreatureBehaviour {
     // 1) aparece lentamente NO CENARIO (nao e imagem de jumpscare) -----------
     c.appear({ x: spawn.x, y: spawn.y, angle: spawn.angle ?? 0, track: "walk" });
 
-    // assim que o fade termina, comeca a caminhar ao fundo -------------------
-    this._delay(this.config.fade.appearDuration, () => {
-      if (!c.visible) return finish();
+    // A APARICAO NAO BLOQUEIA a cena: enquanto ela ancora em silencio, os
+    // timers abaixo continuam correndo. Cada passo confere se ela ainda esta
+    // visivel -- se nao estiver, espera ate virar (nunca "perde" o roteiro).
+    const gateVisible = (fn) => {
+      let waited = 0;
+      const tick = (dt) => {
+        if (c.visible || !this._sceneRunning) {
+          this._removeTick(tick);
+          fn();
+        } else {
+          waited += dt;
+          if (waited > 8) {
+            this._removeTick(tick);
+            fn(); // rede de seguranca: nunca travar a cena por causa de fade
+          }
+        }
+      };
+      this._ticks.push(tick);
+      this._cancellable.push(() => this._removeTick(tick));
+    };
+
+    // 1) aparece lentamente NO CENARIO ---------------------------------------
+    gateVisible(() => {
+      // 2) caminha ao fundo ----------------------------------------------------
       c.walk(c.bodyAngle, { duration: cfg.walkDuration });
 
-      // 2) ela PARA -----------------------------------------------------------
-      this._delay(cfg.walkDuration, () => {
-        c.stop({
-          onEnd: () => {
-            // 3) VIRA LENTAMENTE a cabeca para o jogador ----------------------
-            c.turnHead(p.position, {
-              duration: cfg.turnDuration,
-              onEnd: () => {
-                // 4) OLHA diretamente para o jogador --------------------------
-                c.lookAt(p.position, {
-                  duration: cfg.lookDuration + cfg.vanishDelay,
-                  onEnd: () => {
-                    // 6) desaparece e libera o jogador ------------------------
-                    c.disappear({
-                      duration: this.config.fade.disappearDuration,
-                    });
-                    this._delay(this.config.fade.disappearDuration, () => {
-                      finish();
-                    });
-                  },
-                });
+      // 3) ela PARA ------------------------------------------------------------
+      this._delay(cfg.walkDuration, () =>
+        gateVisible(() => {
+          c.stop({
+            onEnd: () => {
+              // 4) VIRA LENTAMENTE a cabeca para o jogador ---------------------
+              c.turnHead(p.position, {
+                duration: cfg.turnDuration,
+                onEnd: () => {
+                  // 5) OLHA diretamente para o jogador -------------------------
+                  c.lookAt(p.position, {
+                    duration: cfg.lookDuration + cfg.vanishDelay,
+                    onEnd: () => {
+                      // 7) desaparece e libera o jogador -----------------------
+                      c.disappear({ duration: this.config.fade.disappearDuration });
+                      this._delay(this.config.fade.disappearDuration + 0.1, finish);
+                    },
+                  });
 
-                // 5) NESSE momento (e somente nesse): efeitos de medo ---------
-                this._applyFear(cfg);
-              },
-            });
-          },
-        });
-      });
+                  // 6) NESSE momento (e somente nesse): efeitos de medo --------
+                  this._applyFear(cfg);
+                },
+              });
+            },
+          });
+        })
+      );
     });
 
     this.bus?.emit("creature:scene-started", { scene: "first-appearance" });
@@ -179,11 +198,13 @@ export class CreatureBehaviour {
    * aproxima demais, some se o jogador se afasta demais.
    */
   updateAmbient(dt) {
+    // Os timers/delays/gates da cena SEMPRE rodam (inclusive durante uma
+    // cena dirigida) -- antes eles congelavam atras do early-return e a
+    // coreografia podia nunca terminar.
+    for (const tick of [...this._ticks]) tick(dt);
+
     if (this._sceneRunning) return;
     const c = this.creature;
-
-    // drive dos timers de cena atrasados (delay())
-    for (const tick of [...this._ticks]) tick(dt);
 
     if (!c.visible) return;
 
